@@ -16,7 +16,7 @@ jobs:
       fail-fast: false
       matrix:
         python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
-    steps: 
+    steps:
       - name: Setup python
         uses: actions/setup-python@v2.3.0
         with:
@@ -24,10 +24,12 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v2.4.0
       - name: test-basics
+        if: matrix.python-version == '3.8'
         run: python setup.py test
       - name: test with matplotlib, scipy and daks installed
         run: |
-             pip install matplotlib scipy dask
+             pip install matplotlib scipy dask numpy pandas
              python setup.py test
+             pip freeze
       - name: goodbye
         run: echo goodbye

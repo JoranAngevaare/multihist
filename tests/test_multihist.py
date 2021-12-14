@@ -153,7 +153,11 @@ class TestHistdd(TestCase):
         m2.add(np.random.normal(1, 1, 10**3), np.random.normal(1, 1, 10**3))
         m2.add(np.random.normal(-2, 1, 10**3), np.random.normal(2, 1, 10**3))
         m2.plot(vmin=1, vmax=10, log_scale=True,)
-        plt.show()
+        plt.clf()
+        m2.plot(norm=LogNorm(vmin=1, vmax=10))  # correct matplotlib3.5 style
+        plt.clf()
+        m2.plot(log_scale=True,)
+        plt.clf()
 
 
 if __name__ == '__main__':
