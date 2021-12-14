@@ -8,9 +8,9 @@ on:
     branches:
       - master
 
-jobs:
-  update:
-    os: ubuntu-latest
+jobs: 
+  test:
+    runs-on: ubuntu-latest
     python-version: 3.8
     steps:
       - name: Setup python
@@ -23,4 +23,4 @@ jobs:
         run: |
              python setup.py test
       - name: goodbye
-        run: echo goodbye
+      run: echo goodbye
