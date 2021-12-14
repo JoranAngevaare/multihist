@@ -33,10 +33,10 @@ jobs:
              python setup.py test
              pip freeze
       - name: test with dependencies install py2.7
-          if: matrix.python-version == '2.7'
-          run: |
-            pip install scipy dask numpy pandas pytest
-            pytest -vs
-            pip freeze
+        if: matrix.python-version == '2.7'
+        run: |
+          pip install scipy dask numpy pandas pytest
+          pytest -vs
+          pip freeze
       - name: goodbye
         run: echo goodbye
