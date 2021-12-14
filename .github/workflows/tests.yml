@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8 , 3.9, "3.10", "3.11"]
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8 , 3.9, "3.10"]
     steps:
       - name: Setup python
         uses: actions/setup-python@v2.3.0
@@ -31,12 +31,10 @@ jobs:
         run: |
              pip install matplotlib scipy dask numpy pandas
              python setup.py test
-             pip freeze
       - name: test with dependencies install py2.7
         if: matrix.python-version == '2.7'
         run: |
-          pip install scipy dask numpy pandas pytest
-          pytest -vs
-          pip freeze
+          pip install scipy dask numpy pandas
+          python setup.py test
       - name: goodbye
         run: echo goodbye
