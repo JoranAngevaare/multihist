@@ -222,12 +222,17 @@ class Hist1d(MultiHistBase):
         :param scale_histogram_by: Custom multiplier to apply to histogram.
         Errors are computed before scaling, then scaled accordingly.
         :param scale_errors_by: Custom multiplier to apply to errors.
+            This scales the differences between the low/high errors and the
+            mean. For low counts / asymmetric errors, this will look strange.
         :param errors: Whether and how to plot 1 sigma error bars
             * False for no errors
             * True or 'fc' for Feldman-Cousin errors.
               For > 20 events, central Poisson intervals are used
             * 'central' for central Poisson confidence intervals
             * 'sqrtn' for sqrt(n) errors
+            * 'model_quantiles' for central Poisson inverval assuming
+               bin content is the Poisson mean (expectation), NOT a 
+               confidence interval
         :param errorstyle: How to plot errors (if errors is not False)
          * 'bar' for error bars
          * 'band' for shaded bands
@@ -247,14 +252,21 @@ class Hist1d(MultiHistBase):
             ylow, yhigh = y - _yerr, y + _yerr
         elif errors == 'central':
             ylow, yhigh = poisson_1s_interval(y, fc=False)
+        elif errors == 'model_quantiles':
+            ylow, yhigh = stats.poisson(y).ppf(stats.norm.cdf(-1)), stats.poisson(y).ppf(stats.norm.cdf(1))
+            # Show some error band <0.2 expected events
+            yhigh = yhigh.clip(y, None)
         elif errors:
             ylow, yhigh = poisson_1s_interval(y, fc=True)
         else:
             ylow, yhigh = y, y
 
         y = y.astype(np.float) * scale_histogram_by
-        ylow = ylow.astype(np.float) * scale_histogram_by * scale_errors_by
-        yhigh = yhigh.astype(np.float) * scale_histogram_by * scale_errors_by
+        ylow = ylow.astype(np.float) * scale_histogram_by
+        yhigh = yhigh.astype(np.float) * scale_histogram_by
+
+        ylow = (y - (y - ylow) * scale_errors_by).clip(0, None)
+        yhigh = y + (yhigh - y) * scale_errors_by
 
         if errors and error_style == 'bar':
             kwargs.setdefault('linestyle', 'none')
