@@ -26,14 +26,17 @@ jobs:
       - name: test-basics
         if: matrix.python-version == '3.8'
         run: python setup.py test
-      - name: test with matplotlib, scipy and daks installed
-        env:
-          # Running python 2.7 is a bad idea anyway but we need to set this here
-          DISPLAY: ":0.0"
+      - name: test with dependencies install py3.X
+        if: matrix.python-version != '2.7'
         run: |
-             export
              pip install matplotlib scipy dask numpy pandas
              python setup.py test
              pip freeze
+      - name: test with dependencies install py2.7
+          if: matrix.python-version == '2.7'
+          run: |
+            pip install scipy dask numpy pandas pytest
+            pytest -vs
+            pip freeze
       - name: goodbye
         run: echo goodbye
