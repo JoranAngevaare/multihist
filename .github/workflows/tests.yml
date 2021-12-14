@@ -15,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8 , 3.9, "3.10"]
     steps:
       - name: Setup python
         uses: actions/setup-python@v2.3.0
@@ -27,7 +27,11 @@ jobs:
         if: matrix.python-version == '3.8'
         run: python setup.py test
       - name: test with matplotlib, scipy and daks installed
+        env:
+          # Running python 2.7 is a bad idea anyway but we need to set this here
+          DISPLAY: 0.0
         run: |
+             export
              pip install matplotlib scipy dask numpy pandas
              python setup.py test
              pip freeze
