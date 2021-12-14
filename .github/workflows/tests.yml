@@ -18,8 +18,11 @@ jobs:
           python-version: 3.8
       - name: Checkout repo
         uses: actions/checkout@v2.4.0
-      - name: test
+      - name: test-basics
+        run: python setup.py test
+      - name: test with matplotlib, scipy and daks installed
         run: |
+             pip install matplotlib scipy dask
              python setup.py test
       - name: goodbye
         run: echo goodbye
