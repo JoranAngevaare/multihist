@@ -29,7 +29,7 @@ jobs:
       - name: test with matplotlib, scipy and daks installed
         env:
           # Running python 2.7 is a bad idea anyway but we need to set this here
-          DISPLAY: 0.0
+          DISPLAY: ":0.0"
         run: |
              export
              pip install matplotlib scipy dask numpy pandas
