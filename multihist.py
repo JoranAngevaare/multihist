@@ -261,9 +261,9 @@ class Hist1d(MultiHistBase):
         else:
             ylow, yhigh = y, y
 
-        y = y.astype(np.float) * scale_histogram_by
-        ylow = ylow.astype(np.float) * scale_histogram_by
-        yhigh = yhigh.astype(np.float) * scale_histogram_by
+        y = y.astype(np.float64) * scale_histogram_by
+        ylow = ylow.astype(np.float64) * scale_histogram_by
+        yhigh = yhigh.astype(np.float64) * scale_histogram_by
 
         ylow = (y - (y - ylow) * scale_errors_by).clip(0, None)
         yhigh = y + (yhigh - y) * scale_errors_by
@@ -584,7 +584,7 @@ class Histdd(MultiHistBase):
         s_collapsed[axis] = 1
 
         # Shape of histogram with axis removed entirely
-        s_removed = np.concatenate([s[:axis], s[axis + 1:]]).astype(np.int)
+        s_removed = np.concatenate([s[:axis], s[axis + 1:]]).astype(np.int64)
 
         # Using np.where here is too tricky, as it may not return a value for each "bin-columns"
         # First, get an array which has a minimum at the percentile-containing bins
@@ -598,7 +598,7 @@ class Histdd(MultiHistBase):
         # We now want to get the location of the minimum
         # To ensure it is unique, add a very very very small monotonously increasing bit to x
         # Nobody will want 1e-9th percentiles, right? TODO
-        sz = np.ones(len(s), dtype=np.int)
+        sz = np.ones(len(s), dtype=np.int64)
         sz[axis] = -1
         x += np.linspace(0, 1e-9, s[axis]).reshape(sz)
 
@@ -716,7 +716,7 @@ class Histdd(MultiHistBase):
         bin_centers_ravel = np.array(np.meshgrid(*self.bin_centers(),
                                                  indexing='ij')).reshape(self.dimensions, -1).T
         hist_ravel = self.histogram.ravel()
-        hist_ravel = hist_ravel.astype(np.float) 
+        hist_ravel = hist_ravel.astype(np.float64)
         hist_ravel = hist_ravel / np.nansum(hist_ravel)
         result = bin_centers_ravel[np.random.choice(len(bin_centers_ravel),
                                                     p=hist_ravel,
@@ -898,7 +898,7 @@ def poisson_central_interval(k, cl=0.6826894921370859):
     if not HAVE_SCIPY:
         raise NotImplementedError("Poisson errors require scipy")
     # Adapted from https://stackoverflow.com/a/14832525
-    k = np.asarray(k).astype(np.int)
+    k = np.asarray(k).astype(np.int64)
     alpha = 1 - cl
     low = stats.chi2.ppf(alpha / 2, 2 * k) / 2
     high = stats.chi2.ppf(1 - alpha / 2, 2 * k + 2) / 2
@@ -913,7 +913,7 @@ def poisson_1s_interval(k, fc=True):
     and central intervals otherwise.
     (at k = 20, the difference between these is 1-2%).
     """
-    k = np.asarray(k).astype(np.int)
+    k = np.asarray(k).astype(np.int64)
     result = poisson_central_interval(k)
     if fc:
         mask = k <= 20
