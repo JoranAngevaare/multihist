@@ -47,7 +47,7 @@ COLUMNAR_DATA_SOURCES = tuple(COLUMNAR_DATA_SOURCES)
 
 from operator import itemgetter
 
-__version__ = '0.6.4'
+__version__ = '0.6.5'
 
 
 class CoordinateOutOfRangeException(Exception):
@@ -165,7 +165,7 @@ class Hist1d(MultiHistBase):
     @property
     def density(self):
         """Gives emprical PDF, like np.histogram(...., density=True)"""
-        h = self.histogram.astype(np.float)
+        h = self.histogram.astype(float)
         bindifs = np.array(np.diff(self.bin_edges), float)
         return h / (bindifs * self.n)
 
@@ -210,40 +210,20 @@ class Hist1d(MultiHistBase):
             bc = 1
         return np.sqrt(np.average((self.bin_centers - self.mean) ** 2, weights=self.histogram)) * bc
 
-    def plot(self,
-             normed=False, scale_histogram_by=1.0, scale_errors_by=1.0,
-             errors=False, error_style='bar', error_alpha=0.3,
-             plt=plt, set_xlim=False,
-             **kwargs):
-        """Plot the histogram, with error bars if desired.
+    def data_for_plot(
+        self,
+        normed=False, scale_histogram_by=1.0, scale_errors_by=1.0,
+        errors=False, error_style='bar'):
+        """Return (x, y, ylow, yhigh) of data used for plotting.
 
-        :param normed: Scale the histogram so the sum is 1 before plotting.
-        Errors are computed before scaling, then scaled accordingly.
-        :param scale_histogram_by: Custom multiplier to apply to histogram.
-        Errors are computed before scaling, then scaled accordingly.
-        :param scale_errors_by: Custom multiplier to apply to errors.
-            This scales the differences between the low/high errors and the
-            mean. For low counts / asymmetric errors, this will look strange.
-        :param errors: Whether and how to plot 1 sigma error bars
-            * False for no errors
-            * True or 'fc' for Feldman-Cousin errors.
-              For > 20 events, central Poisson intervals are used
-            * 'central' for central Poisson confidence intervals
-            * 'sqrtn' for sqrt(n) errors
-            * 'model_quantiles' for central Poisson inverval assuming
-               bin content is the Poisson mean (expectation), NOT a 
-               confidence interval
-        :param errorstyle: How to plot errors (if errors is not False)
-         * 'bar' for error bars
-         * 'band' for shaded bands
-        :param error_alpha: Alpha multiplier for errorstyle='band'
-        :param plt: Object to call plt... on; matplotlib.pyplot by default.
-        :param set_xlim: If True, set xlim to the range of the hist
+        Specifically, returns:
+         x: x-values of lines/points; bin centers or edges, depending on error_style
+         y: y-values of lines/points, same length as x
+         ylow: lower bound of error bars/bands, same length as x
+         yhigh: upper bound of error bars/bands, same length as x
+
+        Arguments are as described in plot
         """
-        if not CAN_PLOT:
-            raise ValueError(
-                "matplotlib did not import, so can't plot your histogram...")
-        x = self.bin_edges
         y = self.histogram
         if normed:
             scale_histogram_by /= y.sum()
@@ -261,44 +241,92 @@ class Hist1d(MultiHistBase):
         else:
             ylow, yhigh = y, y
 
-        y = y.astype(np.float) * scale_histogram_by
-        ylow = ylow.astype(np.float) * scale_histogram_by
-        yhigh = yhigh.astype(np.float) * scale_histogram_by
+        y = y.astype(float) * scale_histogram_by
+        ylow = ylow.astype(float) * scale_histogram_by
+        yhigh = yhigh.astype(float) * scale_histogram_by
 
         ylow = (y - (y - ylow) * scale_errors_by).clip(0, None)
         yhigh = y + (yhigh - y) * scale_errors_by
 
         if errors and error_style == 'bar':
-            kwargs.setdefault('linestyle', 'none')
-            kwargs.setdefault('marker', '.')
-            plt.errorbar(self.bin_centers,
-                         y,
-                         yerr=[y - ylow, yhigh - y],
-                         **kwargs)
+            # Plotting (dots with) bars
+            x = self.bin_centers
+
         else:
-            # Note we use steps-pre, not steps-mid.
+            # Plot some kind of stepped line: we will plot vs the bin *edges*
+            # using steps-pre (not steps-mid)
             # If we would have plotted values only vs the centers
             #  * the steps won't be correct for log scales
             #  * the final bins will not fully show
-            def fix(q):
-                return np.concatenate([[q[0]], q])
-            y = fix(y)
-            ylow = fix(ylow)
-            yhigh = fix(yhigh)
+
+            x = self.bin_edges
+            y, ylow, yhigh = [_repeat_first(q) for q in [y, ylow, yhigh]]
+
+        return x, y, ylow, yhigh
+
+    def plot(self,
+             normed=False, scale_histogram_by=1.0, scale_errors_by=1.0,
+             errors=False, error_style='bar', error_alpha=0.3,
+             plt=plt, set_xlim=False,
+             **kwargs):
+        """Plot the histogram, with error bars if desired.
+
+        :param normed: Scale the histogram so the sum is 1 before plotting.
+            Errors are computed before scaling, then scaled accordingly.
+        :param scale_histogram_by: Custom multiplier to apply to histogram.
+            Errors are computed before scaling, then scaled accordingly.
+        :param scale_errors_by: Custom multiplier to apply to errors.
+            This scales the differences between the low/high errors and the
+            mean. For low counts / asymmetric errors, this will look strange.
+        :param errors: Whether and how to plot 1 sigma error bars
+            * False shows no errors
+            * True or 'fc' for Feldman-Cousin errors.
+              For > 20 events, central Poisson intervals are used
+            * 'central' for central Poisson confidence intervals
+            * 'sqrtn' for sqrt(n) errors
+            * 'model_quantiles' for central Poisson inverval assuming
+               bin content is the Poisson mean (expectation), NOT a
+               confidence interval
+        :param errorstyle: How to plot errors (if errors is not False)
+         * 'bar' for error bars
+         * 'band' for shaded bands
+        :param error_alpha: Alpha multiplier for errorstyle='band'
+        :param plt: Object to call plt... on; matplotlib.pyplot by default.
+        :param set_xlim: If True, set xlim to the range of the hist
+        """
+        if not CAN_PLOT:
+            raise ValueError(
+                "matplotlib did not import, so can't plot your histogram...")
+
+        x, y, ylow, yhigh = self.data_for_plot(
+            normed=normed,
+            scale_histogram_by=scale_histogram_by,
+            scale_errors_by=scale_errors_by,
+            errors=errors,
+            error_style=error_style)
+
+        if errors and error_style == 'bar':
+            # Plot as points with error bars
+            kwargs.setdefault('linestyle', 'none')
+            kwargs.setdefault('marker', '.')
+            plt.errorbar(x,
+                         y,
+                         yerr=[y - ylow, yhigh - y],
+                         **kwargs)
+
+        else:
 
             if errors and error_style == 'band':
-                plt.plot(x, y, drawstyle='steps-pre', **kwargs)
-                alpha = error_alpha
-                if 'alpha' in kwargs:
-                    alpha *= kwargs['alpha']
-                    del kwargs['alpha']
+                line = plt.plot(x, y, drawstyle='steps-pre', **kwargs)
+                kwargs['color'] = line[0].get_color()
+                kwargs['alpha'] = error_alpha * kwargs.get('alpha', 1)
                 kwargs['linewidth'] = 0
                 if 'label' in kwargs:
                     # Don't want to double-label!
                     del kwargs['label']
                 plt.fill_between(x, ylow, yhigh,
-                                 alpha=alpha,
                                  step='pre', **kwargs)
+
             else:
                 plt.plot(x, y, drawstyle='steps-pre', **kwargs)
 
@@ -584,7 +612,7 @@ class Histdd(MultiHistBase):
         s_collapsed[axis] = 1
 
         # Shape of histogram with axis removed entirely
-        s_removed = np.concatenate([s[:axis], s[axis + 1:]]).astype(np.int)
+        s_removed = np.concatenate([s[:axis], s[axis + 1:]]).astype(int)
 
         # Using np.where here is too tricky, as it may not return a value for each "bin-columns"
         # First, get an array which has a minimum at the percentile-containing bins
@@ -598,7 +626,7 @@ class Histdd(MultiHistBase):
         # We now want to get the location of the minimum
         # To ensure it is unique, add a very very very small monotonously increasing bit to x
         # Nobody will want 1e-9th percentiles, right? TODO
-        sz = np.ones(len(s), dtype=np.int)
+        sz = np.ones(len(s), dtype=int)
         sz[axis] = -1
         x += np.linspace(0, 1e-9, s[axis]).reshape(sz)
 
@@ -716,7 +744,7 @@ class Histdd(MultiHistBase):
         bin_centers_ravel = np.array(np.meshgrid(*self.bin_centers(),
                                                  indexing='ij')).reshape(self.dimensions, -1).T
         hist_ravel = self.histogram.ravel()
-        hist_ravel = hist_ravel.astype(np.float) 
+        hist_ravel = hist_ravel.astype(float)
         hist_ravel = hist_ravel / np.nansum(hist_ravel)
         result = bin_centers_ravel[np.random.choice(len(bin_centers_ravel),
                                                     p=hist_ravel,
@@ -898,7 +926,7 @@ def poisson_central_interval(k, cl=0.6826894921370859):
     if not HAVE_SCIPY:
         raise NotImplementedError("Poisson errors require scipy")
     # Adapted from https://stackoverflow.com/a/14832525
-    k = np.asarray(k).astype(np.int)
+    k = np.asarray(k).astype(int)
     alpha = 1 - cl
     low = stats.chi2.ppf(alpha / 2, 2 * k) / 2
     high = stats.chi2.ppf(1 - alpha / 2, 2 * k + 2) / 2
@@ -913,9 +941,13 @@ def poisson_1s_interval(k, fc=True):
     and central intervals otherwise.
     (at k = 20, the difference between these is 1-2%).
     """
-    k = np.asarray(k).astype(np.int)
+    k = np.asarray(k).astype(int)
     result = poisson_central_interval(k)
     if fc:
         mask = k <= 20
         result[:, mask] = _fc_intervals[k[mask]].T
     return result
+
+
+def _repeat_first(q):
+    return np.concatenate([[q[0]], q])
